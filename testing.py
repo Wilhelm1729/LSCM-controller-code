@@ -1,11 +1,13 @@
-# This code contains draft code for identifying translation of a NumPy array, and returning the required shift to return the array to its original positions.
-
 import numpy as np
-from scipy import signal
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from scipy import signal
+import random
+
+import translation_finder
 
 
-def find_translation(img1, img2, visualize = False):
+def find_translation(img1, img2):
     """
     Given two 2D NumPy arrays, identifies the translational difference between the two and returns
     the shift in x- and- y-coordinates that is needed to reposition img2 to coincide with img1.
@@ -28,21 +30,30 @@ def find_translation(img1, img2, visualize = False):
     # The coordinates in the reference images that maximally correlate with center coordinates of shifted image
     y, x = np.unravel_index(np.argmax(corr), corr.shape)
 
-    x_shift = x - x2
-    y_shift = y - y2
+    x_shift = x2 - x
+    y_shift = y2 - y
 
-    if visualize:
-        # Visualize results
-        fig, (ax_img1, ax_img2, ax_corr) = plt.subplots(1, 3, figsize=(15, 5))
-        im = ax_img1.imshow(img1, cmap="gray")
-        ax_img1.set_title("img1")
-        ax_img2.imshow(img2, cmap="gray")
-        ax_img2.set_title("img2")
-        im = ax_corr.imshow(corr, cmap="viridis")
-        ax_corr.set_title("Cross-correlation")
-        ax_img1.plot(x, y, "ro")
-        ax_img2.plot(x2, y2, "go")
-        ax_corr.plot(x, y, "ro")
-        fig.show()
+    # Visualize results
+    fig, (ax_img1, ax_img2, ax_corr) = plt.subplots(1, 3, figsize=(15, 5))
+    im = ax_img1.imshow(img1, cmap="gray")
+    ax_img1.set_title("img1")
+    ax_img2.imshow(img2, cmap="gray")
+    ax_img2.set_title("img2")
+    im = ax_corr.imshow(corr, cmap="viridis")
+    ax_corr.set_title("Cross-correlation")
+    ax_img1.plot(x, y, "ro")
+    ax_img2.plot(x2, y2, "go")
+    ax_corr.plot(x, y, "ro")
+    fig.show()
+
+    plt.waitforbuttonpress()
 
     return x_shift, y_shift
+
+
+img1 = np.load("kex\LSCM-controller-code\Matrix_3.npy")
+img2 = np.load("kex\LSCM-controller-code\Matrix_3_shifted.npy")
+
+x_shift, y_shift = find_translation(img1, img2)
+
+print(f"x_shift = {x_shift}, y_shift = {y_shift}")
