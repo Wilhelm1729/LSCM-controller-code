@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import scipy
-import random
+from scipy.optimize import curve_fit
+
 
 
 def plot_heatmap(matrix, title="Heatmap", cmap="viridis", annot=False):
@@ -93,6 +94,7 @@ def generate(xdim, ydim):
 
     return (m, m_shifted)
 
+<<<<<<< HEAD
 
 if __name__ == "__main__":
     # data = np.random.rand(10, 10)  # Generate a 10x10 random matrix
@@ -102,3 +104,49 @@ if __name__ == "__main__":
 
     plot_matrix(a, b)
     # plot_heatmap(data, title='Random Matrix Heatmap', cmap='coolwarm', annot=True)
+=======
+
+
+
+
+def gaussian_fit(matrix):
+
+    def gaussian_2d(X, A, x0, y0, sigma, offset):
+        x, y = X
+        return A * np.exp(-((x - x0)**2 + (y - y0)**2) / (2 * sigma**2)) + offset
+
+
+    x = np.linspace(-0.5, 0.5, 25)
+    y = np.linspace(-0.5, 0.5, 25)
+
+    X, Y = np.meshgrid(x,y)
+
+    x_data = X.ravel()
+    y_data = Y.ravel()
+    z_data = matrix.ravel()
+
+    p0 = [4, 0, 0, 0.4, 0]
+
+
+    popt, _ = curve_fit(gaussian_2d, (x_data, y_data), z_data, p0=p0)
+
+    #A_fit, x0_fit, y0_fit, sigma_fit, offset_fit = popt
+    print(popt)
+
+    Z_fit = gaussian_2d((X, Y), *popt)
+    
+    return Z_fit
+
+
+
+if __name__ == "__main__":
+    #data = np.random.rand(10, 10)  # Generate a 10x10 random matrix
+    (a,b) = generate(25,25)
+
+    c = gaussian_fit(a)
+
+    #np.save("Matrix_1", a)
+    #np.save("Matrix_1_shifted", b)
+
+    plot_matrix(a, c)
+>>>>>>> 5f031707568a16bca74b8a706ff85c70b7a168f9
