@@ -4,6 +4,8 @@ import matplotlib.gridspec as gridspec
 import scipy
 from scipy.optimize import curve_fit
 
+from gaussian_fit import find_peak
+
 
 def plot_heatmap(matrix, title="Heatmap", cmap="viridis", annot=False):
     """
@@ -31,7 +33,6 @@ def plot_heatmap(matrix, title="Heatmap", cmap="viridis", annot=False):
 
     plt.show()
 
-
 def plot_matrix(matrix1, matrix2, title="Heatmap"):
     fig = plt.figure(figsize=(10, 6))
     gs = gridspec.GridSpec(1, 2)
@@ -55,7 +56,6 @@ def plot_matrix(matrix1, matrix2, title="Heatmap"):
     plt.tight_layout()
     plt.savefig(title + ".png")
     plt.show()
-
 
 def generate(xdim, ydim):
 
@@ -93,45 +93,6 @@ def generate(xdim, ydim):
 
     return (m, m_shifted)
 
-
-def gaussian_fit(matrix):
-
-    def gaussian_2d(X, A, x0, y0, sigma, offset):
-        x, y = X
-        return A * np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / (2 * sigma**2)) + offset
-
-    # Create arrays for fitting (our fitted parameters are normalised so the dimensions of the input is 1 by 1)
-    x = np.linspace(-0.5, 0.5, matrix.shape[0])
-    y = np.linspace(-0.5, 0.5, matrix.shape[1])
-
-
-    X, Y = np.meshgrid(x,y)
-    x_data = X.ravel()
-    y_data = Y.ravel()
-    z_data = matrix.ravel()
-
-    # Initial guess
-    mode = scipy.stats.mode(matrix.flatten())[0][0]
-    top = np.mean(np.sort(matrix.flatten())[-5:])
-
-    A_guess = top - mode
-    sigma_guess = 0.05
-    offset_guess = mode
-
-    p0 = [A_guess, 0, 0, sigma_guess, offset_guess]
-
-    # Find parameters for fit (A_fit, x0_fit, y0_fit, sigma_fit, offset_fit = popt)
-    popt, _ = curve_fit(gaussian_2d, (x_data, y_data), z_data, p0=p0)
-
-    print(popt)
-
-    # Return array with the fitted function
-    Z_fit = gaussian_2d((X, Y), *popt)
-
-    return Z_fit
-
-
-
 def read_textfile_to_numpy(filename):
     """
     Reads a text file with space-separated numbers and converts it into a 2D NumPy array.
@@ -142,7 +103,6 @@ def read_textfile_to_numpy(filename):
         data = [list(map(int, line.split())) for line in file]
     
     return np.array(data)
-
 
 def plot_histogram_1(array):
     """
@@ -183,15 +143,12 @@ if __name__ == "__main__":
     m1 = read_textfile_to_numpy(filename1)
     m2 = read_textfile_to_numpy(filename2)
 
+    (x,y) = find_peak(m2)
 
-    data = (m2.sum(axis=0) - 164) / 82 / 82
-
-    v = np.var(data)
-    print(np.sqrt(v))
-
-    plt.plot(data)
-    plt.show()
-
+    print(x,y)
+    plot_matrix(m2,m1)
+    
+    #Z_fit = gaussian_2d((X, Y), *popt)
     #print(m2.shape)
     #g = gaussian_fit(m2)
     #plot_histogram(m2)
