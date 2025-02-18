@@ -29,6 +29,8 @@ import socket
 import pickle
 import copy
 
+import gaussian_fit
+
 
 class NBControl:
     @staticmethod
@@ -418,6 +420,13 @@ class ScanTab:
             row=10, column=0, sticky="new", padx=2, pady=0
         )  # in sub frame
 
+
+        #########################################################################################################CALIBRATION
+        self.calibration_widget(live_tab_1).grid(
+            row=20, column=0, sticky="new", padx=2, pady=0
+        )
+
+
         # Logged information:
         self.log_scan_widget(live_tab_3).grid(
             row=4, column=0, columnspan=2, rowspan=20, sticky="new", padx=2, pady=0
@@ -426,6 +435,7 @@ class ScanTab:
         live_tab_1.grid(row=0, column=1, sticky="n")
         live_tab_2.grid(row=0, column=2, sticky="")
         live_tab_3.grid(row=0, column=0, sticky="n")
+
 
         # self.tabControl.add(live_tab, text=tabname)
         live_tab.grid(row=1, column=0, sticky="w")
@@ -1382,6 +1392,164 @@ class ScanTab:
         # self.pb.grid(row=0, column=1, sticky="nsew")
 
         # return frm_send
+
+    
+    def calibration_widget(self, tab):
+        #########################################################################################################CALIBRATION
+
+
+        
+        def analyze_calibration(from_file=True):
+            #self.suggest_name()
+
+            self.t7.prev_speed_mode = self.speed_mode.get()
+            # TODO NOTE WORKING HERE PLOTTING ANALYSIS
+            self.logger_box.module_logger.info("Pressed analyze")
+
+            self.all_figs = self.ETA_analysis()
+
+            #if from_file:
+            #    self.t7.slow_galvo_scan(do_scan=False)
+
+            self.draw_image(self.all_figs[0][0])
+
+            # Recover filepath
+
+            timetag_file = self.anal_data_file.get()
+
+            def find_in_str(term, search_str):
+                try:
+                    return re.search(f'{term}\((.*?)\)', search_str).group(1)
+                except:
+                    print(f"ERROR: Failed string search for '{term}' in '{search_str}'")
+                    return -1.0
+
+            filename = f"{find_in_str('_date', timetag_file)}_{find_in_str('_time', timetag_file)}"
+
+            st = timetag_file.find("date(")
+            fin = timetag_file.find(".timeres")
+
+            save_folder = f"Analysis/{timetag_file[st:fin]}"
+
+            real_filename = f"{save_folder}/data_{filename}.txt"
+
+            
+
+            with open(real_filename, "r") as file:
+                data = [[int(num) for num in line.strip().split()] for line in file]
+
+            xpos, ypos = gaussian_fit.find_peak(data)
+
+
+
+
+
+
+            self.slow_radiobutt.configure(state="disabled")
+            self.zoom_radiobutt.configure(state="disabled")
+
+            for key in self.variable_containers.keys():
+                if "entry" in self.variable_containers[key].keys():
+                    self.variable_containers[key]["entry"].configure(state="disabled")
+
+                if "butt" in self.variable_containers[key].keys():
+                    self.variable_containers[key]["butt"].configure(state="disabled")
+
+            self.variable_containers["duplicate"]["butt"].configure(state="normal")
+
+
+        def press_calibrate():
+            if self.demo_mode.get():
+                txt = "DEMO/OFFLINE"
+            elif self.diagnostics_mode.get():
+                txt = "DIAGNOSTICS"
+            elif self.record_mode.get():
+                txt = "RECORD SCAN"
+            else:
+                txt = "???"
+
+            self.logger_box.module_logger.info(
+                f"\n-------{txt}-------\nStart calibrate pressed"
+            )
+            # self.pb['value'] = 0
+            self.root.update()  # testing
+
+            ################################################################TODO FIXME NOTE Make customizable
+            ac_parameters = [0.01597, 0.01597, 50]
+
+            self.ampY.set(ac_parameters[0])
+            self.ampX.set(ac_parameters[1])
+            self.dimY.set(ac_parameters[2])
+
+            self.suggest_name()
+
+            if not self.demo_mode.get():
+                folder = self.data_folder.get()
+                if len(folder) > 0:
+                    if folder[-1] not in ["/", "//", "\\"]:
+                        folder += "/"
+                self.anal_data_file.set(folder + self.data_file.get())
+                self.logger_box.module_logger.info(
+                    f"new file name => {self.data_file.get()}"
+                )
+
+                if self.speed_mode.get() in ["slow", "zoom"]:
+                    if self.t7.slow_galvo_scan(ac_parameters=ac_parameters) is False:
+                        return  # scan aborted, do not analyze
+                else:
+                    print("ERROR NOT FOUND")
+                    return
+
+                self.logger_box.module_logger.info(f"Done with calibration scan!")
+
+                # NOTE FIXME: MAKE SURE TO WAIT UNTIL DUMPING IS DONE BEFORE ANALYZING
+                self.logger_box.module_logger.info(
+                    f"Auto starting analysis of data in 3 seconds"
+                )
+                time.sleep(3)  # TODO REMOVE AND CHANGE TO ANOTHER WAIT/DELAY FUNCTION
+
+                try:
+                    analyze_calibration()
+                    self.variable_containers["duplicate"]["butt"].configure(
+                        state="normal"
+                    )  # activate duplicate button after scan
+                except:
+                    print("failed analysis after scan")
+                    raise
+
+            else:
+                self.logger_box.module_logger.info(f"Demo Mode")
+
+            self.root.update()
+
+
+
+        # Create a button, just copied from previous code
+        frame = ttk.Frame(tab, relief=tk.RAISED)
+        butt_calibrate = ttk.Button(frame, text="Start calibrate", command=press_calibrate)
+
+        butt_calibrate.grid(row=50, column=1, columnspan=5, sticky="nsew", padx=0, pady=1.5)
+        self.variable_containers["calibrate button"] = {"butt": butt_calibrate}
+
+        return frame
+        """
+        def autocorrection_scan(self, minute_interval = 30, ac_parameters = [0.05, 0.05, 50]): #TODO: Check default values!
+        """
+        #Script that is utilized for long term G2 scans, to correct for drift over time. Function
+        #is called when G2 scan begins.
+        """
+
+        start_time = time.time()
+
+        # Run the function every set number of minutes
+        interval = minute_interval * 60  # Convert to seconds
+
+        while True:
+            self.slow_galvo_scan()  # Execute the function
+            time.sleep(interval)  # Wait for 30 minutes before running again
+
+        """
+
 
     def plot_analysis_widget(self, tab):
         self.plotting_frame = ttk.Frame(tab, relief=tk.RAISED)
@@ -2641,6 +2809,7 @@ class T7:
             self.logger_box.module_logger.info("Scan aborted after safety check.")
 
     def slow_galvo_scan(self, do_scan=True, ac_parameters = None):
+        #ac_parameters = [step_amp, sine_amp, step_dim]
 
         def init_si():  # init slow improved
             self.abort_scan = False
@@ -2667,7 +2836,7 @@ class T7:
 
         def create_values_si(
             ac_parameters = None
-        ): # Default parameters are used for regular scans, modified parameters for autocorrection process
+        ): # Default parameters are used for regular scans, modified parameters for calibration process
 
             if ac_parameters:
                 step_amp = ac_parameters[0]
@@ -3135,22 +3304,6 @@ class T7:
                 self.close_labjack_connection()
                 raise
             return False
-    
-    def autocorrection_scan(self, minute_interval = 30, ac_parameters = [0.05, 0.05, 50]): #TODO: Check default values!
-        """
-        Script that is utilized for long term G2 scans, to correct for drift over time. Function
-        is called when G2 scan begins.
-        """
-
-        start_time = time.time()
-
-        # Run the function every set number of minutes
-        interval = minute_interval * 60  # Convert to seconds
-
-        while True:
-            self.slow_galvo_scan()  # Execute the function
-            time.sleep(interval)  # Wait for 30 minutes before running again
-
 
 
     # Step 1) Sets all parameters depending on selected scan pattern and scan type
