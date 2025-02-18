@@ -1,12 +1,6 @@
-
-
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import scipy
 from scipy.optimize import curve_fit
-
-
 
 
 def find_peak(matrix):
