@@ -1433,15 +1433,18 @@ class ScanTab:
 
             real_filename = f"{save_folder}/data_{filename}.txt"
 
-            
+
 
             with open(real_filename, "r") as file:
                 data = [[int(num) for num in line.strip().split()] for line in file]
 
             xpos, ypos = gaussian_fit.find_peak(data)
 
+            self.t7.move_to_pos(x_coord=xpos, y_coord=ypos)
 
+            self.logger_box.module_logger.info("moved position to" + str(xpos) + " " + str(ypos))
 
+            ####################################################################################################################################NOW WE HAVE XPOS; YPOS
 
 
 
