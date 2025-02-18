@@ -7,6 +7,18 @@ import random
 import translation_finder
 
 
+def generate_gaussian():
+    z = [np.random.normal(0, 0.05) for _ in range(82)]
+    z = np.sort(z)
+    x = list(range(82))
+
+    s = np.sqrt(np.var(z))
+    print(f"Sdev = {s}")
+
+    plt.plot(z, x)
+    plt.show()
+
+
 def find_translation(img1, img2):
     """
     Given two 2D NumPy arrays, identifies the translational difference between the two and returns
@@ -51,9 +63,5 @@ def find_translation(img1, img2):
     return x_shift, y_shift
 
 
-img1 = np.load("kex\LSCM-controller-code\Matrix_3.npy")
-img2 = np.load("kex\LSCM-controller-code\Matrix_3_shifted.npy")
-
-x_shift, y_shift = find_translation(img1, img2)
-
-print(f"x_shift = {x_shift}, y_shift = {y_shift}")
+if __name__ == "__main__":
+    generate_gaussian()

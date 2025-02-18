@@ -2640,7 +2640,7 @@ class T7:
         else:
             self.logger_box.module_logger.info("Scan aborted after safety check.")
 
-    def slow_galvo_scan(self, do_scan=True):
+    def slow_galvo_scan(self, do_scan=True, ac_parameters = None):
 
         def init_si():  # init slow improved
             self.abort_scan = False
@@ -2665,9 +2665,42 @@ class T7:
                 self.close_labjack_connection()
                 self.abort_scan = True
 
-        def create_values_si():
+        def create_values_si(
+            ac_parameters = None
+        ): # Default parameters are used for regular scans, modified parameters for autocorrection process
 
-            if self.speed_mode == "slow":
+            if ac_parameters:
+                step_amp = ac_parameters[0]
+                sine_amp = ac_parameters[1]
+                step_dim = ac_parameters[2]
+                x_pos, y_pos = ljm.eReadNames(self.handle, 2, [self.x_address, self.y_address])
+
+                # Up step vals: (Y)
+                us_values = list(
+                    np.around(
+                        np.linspace(
+                            start=-step_amp,
+                            stop=step_amp,
+                            num=int(step_dim),
+                            endpoint=True,
+                        )
+                        + y_pos,
+                        decimals=10,
+                    )
+                )
+                # Sweep vals (X)
+                sweep_values = np.around(
+                    np.linspace(
+                        start=-sine_amp,
+                        stop=sine_amp,
+                        num=int(step_dim),
+                        endpoint=True,
+                    )
+                    + x_pos,
+                    decimals=10,
+                )
+
+            elif self.speed_mode == "slow":
                 # Up step vals: (Y)
                 us_values = list(
                     np.around(
@@ -3031,9 +3064,27 @@ class T7:
         # 3)
         try:
             # CREATE DATA TO USE
-            sweep_values_all, left_sweep_values, right_sweep_values, up_step_values = (
-                create_values_si()
-            )
+
+            # This code is executed when an autocorrection scan is performed, ac_parameters is not None
+            if ac_parameters: # Expected format: ac_parameters = [ac_step_amp, ac_sine_amp, ac_step_dim]
+                if not type(ac_parameters) == list:
+                    print("Incorrect autocorrection parameter input, input must be a list")
+                    self.abort_scan = True
+                if not len(ac_parameters) == 3:
+                    print("Incorrect autocorrection parameter length, input must have three elements")
+                    self.abort_scan = True
+                if not (ac_parameters[2] > 0 and type(ac_parameters[2]) == int):
+                    print("ac_step_dim is incorrectly given, must be a positive integer.")
+                    self.abort_scan = True
+                
+                sweep_values_all, left_sweep_values, right_sweep_values, up_step_values = (
+                    create_values_si(ac_parameters=ac_parameters)
+                )
+            
+            else: # Regular scan is performed, not autocorrection scan
+                sweep_values_all, left_sweep_values, right_sweep_values, up_step_values = (
+                    create_values_si()
+                )
 
             add_list_01, val_list_01 = add_wait_delay_si(
                 0.1
@@ -3084,6 +3135,23 @@ class T7:
                 self.close_labjack_connection()
                 raise
             return False
+    
+    def autocorrection_scan(self, minute_interval = 30, ac_parameters = [0.05, 0.05, 50]): #TODO: Check default values!
+        """
+        Script that is utilized for long term G2 scans, to correct for drift over time. Function
+        is called when G2 scan begins.
+        """
+
+        start_time = time.time()
+
+        # Run the function every set number of minutes
+        interval = minute_interval * 60  # Convert to seconds
+
+        while True:
+            self.slow_galvo_scan()  # Execute the function
+            time.sleep(interval)  # Wait for 30 minutes before running again
+
+
 
     # Step 1) Sets all parameters depending on selected scan pattern and scan type
     def get_scan_parameters(self):
